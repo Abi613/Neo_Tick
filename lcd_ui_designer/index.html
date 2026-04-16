@@ -132,6 +132,8 @@
       border-radius: 9px;
       padding: 12px;
       box-shadow: inset 0 0 0 1px #000;
+      overflow: hidden;
+      min-height: 170px;
     }
 
     #lcdGrid {
@@ -182,10 +184,36 @@
       align-items: end;
     }
 
+    .controls button { min-height: 40px; }
+
     .controls label {
       display: grid;
       gap: 4px;
       font-size: 0.9rem;
+    }
+
+    .frame-panel {
+      margin-top: 12px;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid #74afb6;
+      background: #b6d9dd;
+      display: grid;
+      gap: 8px;
+    }
+
+    .frame-controls,
+    .view-controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .frame-meta {
+      font-size: 0.9rem;
+      color: #22474f;
+      margin: 0;
     }
 
     .code-zone {
@@ -234,7 +262,7 @@
             <button id="invert">Invert</button>
           </div>
         </div>
-        <p class="hint">Click cells to draw a custom 5x8 character. This maps to one LCD CGRAM slot.</p>
+        <p class="hint">Click cells to draw a custom 5x8 character. This maps to one LCD CGRAM slot. Keyboard: arrows move selection, space stamps current char.</p>
       </section>
 
       <section class="lcd-block">
@@ -254,6 +282,26 @@
           </label>
           <button id="placeChar">Place char</button>
           <button id="clearDisplay">Clear display</button>
+        </div>
+
+        <div class="frame-panel">
+          <div class="frame-controls">
+            <button id="saveFrame">Save frame</button>
+            <button id="prevFrame">◀ Prev</button>
+            <button id="nextFrame">Next ▶</button>
+            <button id="deleteFrame">Delete frame</button>
+            <button id="playFrames">▶ Play</button>
+            <label>FPS
+              <input id="fpsInput" type="number" min="1" max="12" value="3" />
+            </label>
+          </div>
+          <div class="view-controls">
+            <label>Preview zoom
+              <input id="zoomInput" type="range" min="70" max="160" value="100" />
+            </label>
+            <button id="toggleGrid">Hide grid</button>
+          </div>
+          <p class="frame-meta" id="frameMeta">Frames: 0</p>
         </div>
       </section>
     </div>
@@ -280,10 +328,19 @@
       charPixels: Array.from({ length: DOT_ROWS }, () => Array.from({ length: DOT_COLS }, () => 0)),
       display: Array.from({ length: ROWS }, () => Array.from({ length: COLS }, () => null)),
       activeCell: { row: 0, col: 0 },
+      frames: [],
+      currentFrame: -1,
+      isPlaying: false,
+      playTimer: null,
+      showGrid: true,
     };
 
     function clamp(v, min, max) {
       return Math.min(max, Math.max(min, v));
+    }
+
+    function cloneDisplay(display) {
+      return display.map((row) => row.map((cell) => (cell ? cell.map((line) => [...line]) : null)));
     }
 
     function drawCharGrid() {
@@ -318,6 +375,9 @@
       if (state.activeCell.row === row && state.activeCell.col === col) {
         cell.classList.add('active');
       }
+      if (!state.showGrid) {
+        cell.style.borderColor = 'transparent';
+      }
 
       const dotGrid = document.createElement('div');
       dotGrid.className = 'dot-grid';
@@ -337,18 +397,52 @@
         state.activeCell = { row, col };
         document.getElementById('rowInput').value = row;
         document.getElementById('colInput').value = col;
+        const current = state.display[row][col];
+        if (current) {
+          state.charPixels = current.map((line) => [...line]);
+          drawCharGrid();
+        }
         drawLcd();
+        updateCode();
       });
       return cell;
     }
 
     function drawLcd() {
       lcdGrid.innerHTML = '';
+      const zoom = Number(document.getElementById('zoomInput')?.value || 100);
+      lcdGrid.style.transform = `scale(${zoom / 100})`;
+      lcdGrid.style.transformOrigin = 'top center';
+      lcdGrid.style.marginBottom = `${Math.max(0, zoom - 100) * 1.2}px`;
       for (let r = 0; r < ROWS; r++) {
         for (let c = 0; c < COLS; c++) {
           lcdGrid.appendChild(createLcdCell(r, c));
         }
       }
+    }
+
+    function updateFrameMeta() {
+      const frameMeta = document.getElementById('frameMeta');
+      if (!state.frames.length) {
+        frameMeta.textContent = 'Frames: 0';
+      } else {
+        frameMeta.textContent = `Frames: ${state.frames.length} | Selected: ${state.currentFrame + 1}/${state.frames.length}`;
+      }
+    }
+
+    function showFrame(index) {
+      if (!state.frames.length) return;
+      state.currentFrame = (index + state.frames.length) % state.frames.length;
+      state.display = cloneDisplay(state.frames[state.currentFrame]);
+      drawLcd();
+      updateFrameMeta();
+    }
+
+    function stopPlayback() {
+      if (state.playTimer) clearInterval(state.playTimer);
+      state.playTimer = null;
+      state.isPlaying = false;
+      document.getElementById('playFrames').textContent = '▶ Play';
     }
 
     function updateCode() {
@@ -367,6 +461,9 @@
       lines.push('Adafruit_RGBLCDShield lcd = Adafruit_RGBLCDShield();');
       lines.push('');
       lines.push(`byte ${name}[] = { ${literals.join(', ')} };`);
+      if (state.frames.length > 0) {
+        lines.push(`const uint8_t frameCount = ${state.frames.length};`);
+      }
       lines.push('');
       lines.push('void setup() {');
       lines.push('  lcd.begin(20, 4);');
@@ -379,6 +476,10 @@
       lines.push('');
       lines.push('// Decimal byte values (same pattern):');
       lines.push(`// { ${byteRows.join(', ')} }`);
+      if (state.frames.length > 0) {
+        lines.push('// Animation frames saved in UI (use indexes with your own render logic):');
+        lines.push(`// ${state.frames.map((_, idx) => `frame${idx}`).join(', ')}`);
+      }
 
       codeEl.value = lines.join('\n');
     }
@@ -419,14 +520,48 @@
       const col = clamp(Number(document.getElementById('colInput').value) || 0, 0, COLS - 1);
       state.activeCell = { row, col };
       state.display[row][col] = state.charPixels.map((line) => [...line]);
+      document.getElementById('colInput').value = clamp(col + 1, 0, COLS - 1);
       drawLcd();
       updateCode();
     });
 
     document.getElementById('clearDisplay').addEventListener('click', () => {
+      stopPlayback();
       state.display = Array.from({ length: ROWS }, () => Array.from({ length: COLS }, () => null));
       drawLcd();
       updateCode();
+    });
+
+    document.getElementById('saveFrame').addEventListener('click', () => {
+      state.frames.push(cloneDisplay(state.display));
+      state.currentFrame = state.frames.length - 1;
+      updateFrameMeta();
+      updateCode();
+    });
+
+    document.getElementById('deleteFrame').addEventListener('click', () => {
+      if (state.currentFrame < 0 || !state.frames.length) return;
+      state.frames.splice(state.currentFrame, 1);
+      state.currentFrame = Math.min(state.currentFrame, state.frames.length - 1);
+      updateFrameMeta();
+      updateCode();
+    });
+
+    document.getElementById('prevFrame').addEventListener('click', () => showFrame(state.currentFrame - 1));
+    document.getElementById('nextFrame').addEventListener('click', () => showFrame(state.currentFrame + 1));
+
+    document.getElementById('playFrames').addEventListener('click', () => {
+      if (state.isPlaying) {
+        stopPlayback();
+        return;
+      }
+      if (state.frames.length < 2) return;
+      const fps = clamp(Number(document.getElementById('fpsInput').value) || 3, 1, 12);
+      state.isPlaying = true;
+      document.getElementById('playFrames').textContent = '⏸ Pause';
+      state.playTimer = setInterval(() => {
+        showFrame(state.currentFrame + 1);
+      }, Math.round(1000 / fps));
     });
 
     document.getElementById('shiftUp').addEventListener('click', () => shift(0, -1));
@@ -439,6 +574,13 @@
     document.getElementById('rowInput').addEventListener('input', updateCode);
     document.getElementById('colInput').addEventListener('input', updateCode);
     document.getElementById('slotSelect').addEventListener('change', updateCode);
+    document.getElementById('zoomInput').addEventListener('input', drawLcd);
+
+    document.getElementById('toggleGrid').addEventListener('click', () => {
+      state.showGrid = !state.showGrid;
+      document.getElementById('toggleGrid').textContent = state.showGrid ? 'Hide grid' : 'Show grid';
+      drawLcd();
+    });
 
     document.getElementById('copyCode').addEventListener('click', async () => {
       try {
@@ -449,6 +591,25 @@
       }
     });
 
+    document.addEventListener('keydown', (evt) => {
+      const targetTag = (evt.target && evt.target.tagName) || '';
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(targetTag)) return;
+      let { row, col } = state.activeCell;
+      if (evt.key === 'ArrowUp') row = clamp(row - 1, 0, ROWS - 1);
+      if (evt.key === 'ArrowDown') row = clamp(row + 1, 0, ROWS - 1);
+      if (evt.key === 'ArrowLeft') col = clamp(col - 1, 0, COLS - 1);
+      if (evt.key === 'ArrowRight') col = clamp(col + 1, 0, COLS - 1);
+      if (evt.key === ' ') {
+        state.display[row][col] = state.charPixels.map((line) => [...line]);
+        evt.preventDefault();
+      }
+      state.activeCell = { row, col };
+      document.getElementById('rowInput').value = row;
+      document.getElementById('colInput').value = col;
+      drawLcd();
+      updateCode();
+    });
+
     const slotSelect = document.getElementById('slotSelect');
     for (let i = 0; i <= 7; i++) {
       slotSelect.insertAdjacentHTML('beforeend', `<option value="${i}">${i}</option>`);
@@ -456,6 +617,7 @@
 
     drawCharGrid();
     drawLcd();
+    updateFrameMeta();
     updateCode();
   </script>
 </body>
