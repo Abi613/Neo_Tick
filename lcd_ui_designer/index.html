@@ -1,0 +1,549 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>20x4 LCD UI & Animation Designer</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #111827;
+      --lcd: #2d5f2f;
+      --lcd-screen: #8fe388;
+      --text: #e5e7eb;
+      --muted: #9ca3af;
+      --accent: #22c55e;
+      --danger: #ef4444;
+      --cell: 32px;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, Segoe UI, system-ui, -apple-system, sans-serif;
+      background: linear-gradient(145deg, #020617, #111827);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    h1 { margin-top: 0; margin-bottom: 6px; }
+    p { color: var(--muted); margin-top: 0; }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 1fr 340px;
+      gap: 16px;
+      align-items: start;
+    }
+
+    .panel {
+      background: rgba(17, 24, 39, 0.95);
+      border: 1px solid #1f2937;
+      border-radius: 12px;
+      padding: 14px;
+      box-shadow: 0 10px 24px rgba(0,0,0,0.35);
+    }
+
+    .lcd-frame {
+      background: radial-gradient(circle at top right, #3f8f42, #1f4f24);
+      border: 4px solid #355f38;
+      border-radius: 14px;
+      padding: 16px;
+      margin-bottom: 12px;
+      overflow-x: auto;
+    }
+
+    #grid {
+      width: fit-content;
+      background: #2c412e;
+      border: 2px solid #274029;
+      border-radius: 8px;
+      padding: 8px;
+      display: grid;
+      grid-template-columns: repeat(20, var(--cell));
+      grid-template-rows: repeat(4, var(--cell));
+      gap: 4px;
+      margin: auto;
+    }
+
+    .cell {
+      width: var(--cell);
+      height: var(--cell);
+      border: 1px solid #355f38;
+      border-radius: 4px;
+      background: rgba(143, 227, 136, 0.88);
+      color: #153418;
+      font-size: 18px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      text-transform: uppercase;
+      text-align: center;
+      line-height: calc(var(--cell) - 2px);
+      cursor: text;
+      user-select: none;
+      outline: none;
+    }
+
+    .cell.active {
+      border-color: #14532d;
+      box-shadow: inset 0 0 0 2px #14532d;
+      background: #aff1aa;
+    }
+
+    .toolbar {
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      gap: 8px;
+      margin-bottom: 8px;
+      align-items: center;
+    }
+
+    input, textarea, button, select {
+      background: #0b1220;
+      color: var(--text);
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 8px 10px;
+      font: inherit;
+    }
+
+    button {
+      cursor: pointer;
+      background: #0f172a;
+      transition: 120ms ease;
+    }
+
+    button:hover { border-color: #4b5563; }
+    .btn-primary { background: #14532d; border-color: #166534; }
+    .btn-danger { background: #7f1d1d; border-color: #b91c1c; }
+
+    .inline {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 8px;
+    }
+
+    .muted { color: var(--muted); font-size: 13px; }
+
+    #frames {
+      max-height: 240px;
+      overflow-y: auto;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 6px;
+      display: grid;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+
+    .frame-item {
+      background: #0b1220;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 8px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .frame-item.active { border-color: var(--accent); }
+
+    .tiny {
+      font-family: ui-monospace, monospace;
+      font-size: 11px;
+      color: #cbd5e1;
+      white-space: pre;
+      line-height: 1.2;
+    }
+
+    #output {
+      min-height: 260px;
+      width: 100%;
+      resize: vertical;
+      font-family: ui-monospace, monospace;
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    @media (max-width: 1080px) {
+      .layout { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <h1>20x4 LCD UI & Animation Designer</h1>
+  <p>Design frame-by-frame UIs for a 20x4 character display and export ready-to-use C code.</p>
+
+  <div class="layout">
+    <section class="panel">
+      <div class="lcd-frame">
+        <div id="grid" aria-label="20 by 4 LCD editor"></div>
+      </div>
+
+      <div class="toolbar">
+        <input id="textInput" placeholder="Type text to place" maxlength="80" />
+        <button id="pasteBtn">Place text</button>
+        <button id="clearBtn" class="btn-danger">Clear frame</button>
+      </div>
+
+      <div class="inline">
+        <label>
+          Start row
+          <select id="rowSelect"></select>
+        </label>
+        <label>
+          Start col
+          <select id="colSelect"></select>
+        </label>
+        <span class="muted">Click any cell and type to edit one character. Backspace deletes.</span>
+      </div>
+
+      <hr style="border-color:#334155; margin:12px 0;" />
+
+      <div class="inline">
+        <button id="addFrameBtn" class="btn-primary">Add frame</button>
+        <button id="dupFrameBtn">Duplicate frame</button>
+        <button id="delFrameBtn" class="btn-danger">Delete frame</button>
+        <button id="upFrameBtn">Move up</button>
+        <button id="downFrameBtn">Move down</button>
+      </div>
+
+      <div id="frames"></div>
+
+      <div class="inline">
+        <label>Frame delay (ms)
+          <input id="delayInput" type="number" min="50" step="10" value="250" style="width:120px" />
+        </label>
+        <button id="playBtn">▶ Play</button>
+        <button id="stopBtn">■ Stop</button>
+      </div>
+    </section>
+
+    <aside class="panel">
+      <h3 style="margin-top:0">Generated C output</h3>
+      <p class="muted">Includes frame data + example function to render animations on a 20x4 LCD.</p>
+      <textarea id="output" readonly></textarea>
+      <div class="inline" style="margin-top:8px">
+        <button id="copyBtn" class="btn-primary">Copy code</button>
+      </div>
+    </aside>
+  </div>
+
+  <script>
+    const ROWS = 4;
+    const COLS = 20;
+
+    const grid = document.getElementById('grid');
+    const framesEl = document.getElementById('frames');
+    const output = document.getElementById('output');
+    const rowSelect = document.getElementById('rowSelect');
+    const colSelect = document.getElementById('colSelect');
+    const delayInput = document.getElementById('delayInput');
+
+    const state = {
+      frames: [createEmptyFrame()],
+      activeFrame: 0,
+      activeCell: { row: 0, col: 0 },
+      playing: false,
+      playTimer: null,
+      playIndex: 0,
+    };
+
+    for (let r = 0; r < ROWS; r++) {
+      rowSelect.insertAdjacentHTML('beforeend', `<option value="${r}">${r}</option>`);
+    }
+    for (let c = 0; c < COLS; c++) {
+      colSelect.insertAdjacentHTML('beforeend', `<option value="${c}">${c}</option>`);
+    }
+
+    function createEmptyFrame() {
+      return Array.from({ length: ROWS }, () => Array.from({ length: COLS }, () => ' '));
+    }
+
+    function escapeCString(str) {
+      return str
+        .replace(/\\/g, '\\\\')
+        .replace(/"/g, '\\"');
+    }
+
+    function rowToString(rowArr) {
+      return rowArr.join('');
+    }
+
+    function buildGrid() {
+      grid.innerHTML = '';
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+          const cell = document.createElement('div');
+          cell.className = 'cell';
+          cell.dataset.row = r;
+          cell.dataset.col = c;
+          cell.tabIndex = 0;
+          cell.textContent = state.frames[state.activeFrame][r][c] === ' ' ? '\u00A0' : state.frames[state.activeFrame][r][c];
+
+          cell.addEventListener('click', () => setActiveCell(r, c));
+          cell.addEventListener('keydown', (e) => handleCellKey(e, r, c));
+
+          grid.appendChild(cell);
+        }
+      }
+      refreshActiveCellUi();
+    }
+
+    function setActiveCell(row, col) {
+      state.activeCell = { row, col };
+      rowSelect.value = row;
+      colSelect.value = col;
+      refreshActiveCellUi();
+    }
+
+    function refreshActiveCellUi() {
+      [...grid.children].forEach((el) => el.classList.remove('active'));
+      const idx = state.activeCell.row * COLS + state.activeCell.col;
+      const cell = grid.children[idx];
+      if (cell) {
+        cell.classList.add('active');
+        cell.focus();
+      }
+    }
+
+    function setChar(row, col, ch) {
+      state.frames[state.activeFrame][row][col] = ch;
+      const idx = row * COLS + col;
+      const cell = grid.children[idx];
+      if (cell) cell.textContent = ch === ' ' ? '\u00A0' : ch;
+    }
+
+    function moveCursor(dr, dc) {
+      let row = state.activeCell.row + dr;
+      let col = state.activeCell.col + dc;
+      row = Math.max(0, Math.min(ROWS - 1, row));
+      col = Math.max(0, Math.min(COLS - 1, col));
+      setActiveCell(row, col);
+    }
+
+    function handleCellKey(e, row, col) {
+      if (e.key === 'ArrowRight') { e.preventDefault(); moveCursor(0, 1); return; }
+      if (e.key === 'ArrowLeft') { e.preventDefault(); moveCursor(0, -1); return; }
+      if (e.key === 'ArrowUp') { e.preventDefault(); moveCursor(-1, 0); return; }
+      if (e.key === 'ArrowDown') { e.preventDefault(); moveCursor(1, 0); return; }
+
+      if (e.key === 'Backspace' || e.key === 'Delete') {
+        e.preventDefault();
+        setChar(row, col, ' ');
+        renderFramesList();
+        updateOutput();
+        return;
+      }
+
+      if (e.key.length === 1) {
+        e.preventDefault();
+        setChar(row, col, e.key[0]);
+        if (col < COLS - 1) setActiveCell(row, col + 1);
+        renderFramesList();
+        updateOutput();
+      }
+    }
+
+    function placeText(text, startRow, startCol) {
+      let r = startRow;
+      let c = startCol;
+      for (const ch of text) {
+        if (ch === '\n') { r += 1; c = startCol; continue; }
+        if (r >= ROWS) break;
+        if (c >= COLS) { r += 1; c = startCol; }
+        if (r >= ROWS) break;
+        setChar(r, c, ch);
+        c += 1;
+      }
+      renderFramesList();
+      updateOutput();
+    }
+
+    function framePreview(frame) {
+      return frame.map((row) => rowToString(row)).join('\n');
+    }
+
+    function cloneFrame(frame) {
+      return frame.map((r) => [...r]);
+    }
+
+    function renderFramesList() {
+      framesEl.innerHTML = '';
+      state.frames.forEach((frame, idx) => {
+        const item = document.createElement('div');
+        item.className = 'frame-item' + (idx === state.activeFrame ? ' active' : '');
+        const left = document.createElement('div');
+        left.innerHTML = `<strong>Frame ${idx}</strong><div class="tiny">${framePreview(frame)}</div>`;
+        const right = document.createElement('button');
+        right.textContent = 'Load';
+        right.addEventListener('click', () => {
+          state.activeFrame = idx;
+          buildGrid();
+          renderFramesList();
+          updateOutput();
+        });
+        item.append(left, right);
+        framesEl.appendChild(item);
+      });
+    }
+
+    function updateOutput() {
+      const delay = Math.max(50, Number(delayInput.value) || 250);
+      const lines = [];
+      lines.push('// Generated by 20x4 LCD UI & Animation Designer');
+      lines.push('#include <LiquidCrystal.h>');
+      lines.push('');
+      lines.push('// Configure pins for your hardware');
+      lines.push('LiquidCrystal lcd(12, 11, 5, 4, 3, 2);');
+      lines.push('');
+      lines.push(`#define LCD_ROWS ${ROWS}`);
+      lines.push(`#define LCD_COLS ${COLS}`);
+      lines.push(`#define FRAME_COUNT ${state.frames.length}`);
+      lines.push(`#define FRAME_DELAY_MS ${delay}`);
+      lines.push('');
+      lines.push('const char lcdFrames[FRAME_COUNT][LCD_ROWS][LCD_COLS + 1] = {');
+      state.frames.forEach((frame, fIdx) => {
+        lines.push('  {');
+        frame.forEach((row, rIdx) => {
+          const rowStr = escapeCString(rowToString(row));
+          const comma = rIdx < ROWS - 1 ? ',' : '';
+          lines.push(`    "${rowStr}"${comma}`);
+        });
+        const comma = fIdx < state.frames.length - 1 ? ',' : '';
+        lines.push(`  }${comma}`);
+      });
+      lines.push('};');
+      lines.push('');
+      lines.push('void renderFrame(uint8_t frameIndex) {');
+      lines.push('  for (uint8_t row = 0; row < LCD_ROWS; row++) {');
+      lines.push('    lcd.setCursor(0, row);');
+      lines.push('    lcd.print(lcdFrames[frameIndex][row]);');
+      lines.push('  }');
+      lines.push('}');
+      lines.push('');
+      lines.push('void setup() {');
+      lines.push('  lcd.begin(LCD_COLS, LCD_ROWS);');
+      lines.push('}');
+      lines.push('');
+      lines.push('void loop() {');
+      lines.push('  for (uint8_t i = 0; i < FRAME_COUNT; i++) {');
+      lines.push('    renderFrame(i);');
+      lines.push('    delay(FRAME_DELAY_MS);');
+      lines.push('  }');
+      lines.push('}');
+
+      output.value = lines.join('\n');
+    }
+
+    function addFrame() {
+      state.frames.push(createEmptyFrame());
+      state.activeFrame = state.frames.length - 1;
+      buildGrid();
+      renderFramesList();
+      updateOutput();
+    }
+
+    function duplicateFrame() {
+      const current = state.frames[state.activeFrame];
+      state.frames.splice(state.activeFrame + 1, 0, cloneFrame(current));
+      state.activeFrame += 1;
+      buildGrid();
+      renderFramesList();
+      updateOutput();
+    }
+
+    function deleteFrame() {
+      if (state.frames.length === 1) {
+        state.frames[0] = createEmptyFrame();
+        state.activeFrame = 0;
+      } else {
+        state.frames.splice(state.activeFrame, 1);
+        state.activeFrame = Math.max(0, state.activeFrame - 1);
+      }
+      buildGrid();
+      renderFramesList();
+      updateOutput();
+    }
+
+    function moveFrame(direction) {
+      const from = state.activeFrame;
+      const to = from + direction;
+      if (to < 0 || to >= state.frames.length) return;
+      const [item] = state.frames.splice(from, 1);
+      state.frames.splice(to, 0, item);
+      state.activeFrame = to;
+      renderFramesList();
+      updateOutput();
+    }
+
+    function playFrames() {
+      if (state.playing || state.frames.length === 0) return;
+      state.playing = true;
+      state.playIndex = 0;
+      const delay = Math.max(50, Number(delayInput.value) || 250);
+
+      const tick = () => {
+        if (!state.playing) return;
+        state.activeFrame = state.playIndex;
+        buildGrid();
+        renderFramesList();
+        updateOutput();
+        state.playIndex = (state.playIndex + 1) % state.frames.length;
+        state.playTimer = setTimeout(tick, delay);
+      };
+
+      tick();
+    }
+
+    function stopFrames() {
+      state.playing = false;
+      if (state.playTimer) {
+        clearTimeout(state.playTimer);
+        state.playTimer = null;
+      }
+    }
+
+    document.getElementById('pasteBtn').addEventListener('click', () => {
+      const text = document.getElementById('textInput').value;
+      const row = Number(rowSelect.value);
+      const col = Number(colSelect.value);
+      placeText(text, row, col);
+    });
+
+    document.getElementById('clearBtn').addEventListener('click', () => {
+      state.frames[state.activeFrame] = createEmptyFrame();
+      buildGrid();
+      renderFramesList();
+      updateOutput();
+    });
+
+    document.getElementById('addFrameBtn').addEventListener('click', addFrame);
+    document.getElementById('dupFrameBtn').addEventListener('click', duplicateFrame);
+    document.getElementById('delFrameBtn').addEventListener('click', deleteFrame);
+    document.getElementById('upFrameBtn').addEventListener('click', () => moveFrame(-1));
+    document.getElementById('downFrameBtn').addEventListener('click', () => moveFrame(1));
+    document.getElementById('playBtn').addEventListener('click', playFrames);
+    document.getElementById('stopBtn').addEventListener('click', stopFrames);
+
+    document.getElementById('copyBtn').addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(output.value);
+      } catch {
+        output.select();
+        document.execCommand('copy');
+      }
+    });
+
+    rowSelect.addEventListener('change', () => setActiveCell(Number(rowSelect.value), Number(colSelect.value)));
+    colSelect.addEventListener('change', () => setActiveCell(Number(rowSelect.value), Number(colSelect.value)));
+    delayInput.addEventListener('change', updateOutput);
+
+    buildGrid();
+    renderFramesList();
+    updateOutput();
+  </script>
+</body>
+</html>
