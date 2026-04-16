@@ -1,18 +1,14 @@
-# 20x4 LCD UI & Animation Designer
+# 20x4 LCD Character Creator
 
-A standalone browser app to:
+A standalone browser app inspired by the LCD Character Creator UI, but configured for a **20x4** character LCD.
 
-- Design a 20x4 character LCD screen layout.
-- Build multiple frames for animation.
-- Preview frame order in-app.
-- Export C code compatible with common Arduino `LiquidCrystal` workflows.
+## Features
+
+- 5x8 custom character pixel editor.
+- 20x4 LCD preview grid for placement at any row/column.
+- CGRAM slot selector (0-7) and character naming.
+- One-click code generation for `Adafruit_RGBLCDShield` using `lcd.begin(20, 4)`.
 
 ## Run
 
 Open `index.html` in any modern browser.
-
-## Notes
-
-- Each frame stores exactly 4 rows × 20 columns.
-- Exported code defines `lcdFrames` and helper rendering functions.
-- Update LCD pin mapping in generated code to match your hardware.
