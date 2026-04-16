@@ -3,547 +3,460 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>20x4 LCD UI & Animation Designer</title>
+  <title>20x4 LCD Character Creator</title>
   <style>
     :root {
-      --bg: #0f172a;
-      --panel: #111827;
-      --lcd: #2d5f2f;
-      --lcd-screen: #8fe388;
-      --text: #e5e7eb;
-      --muted: #9ca3af;
-      --accent: #22c55e;
-      --danger: #ef4444;
-      --cell: 32px;
+      --bg: #cad4d8;
+      --board: #73bdc6;
+      --board-dark: #4ea0aa;
+      --lcd-bezel: #121417;
+      --lcd-bg: #7ca12f;
+      --lcd-dot: #8db236;
+      --ink: #193039;
+      --panel: #66b3bd;
+      --white: #f7fafc;
+      --active: #f0fbff;
+      --cell-size: 44px;
+      --dot-size: 7px;
     }
 
     * { box-sizing: border-box; }
+
     body {
       margin: 0;
-      font-family: Inter, Segoe UI, system-ui, -apple-system, sans-serif;
-      background: linear-gradient(145deg, #020617, #111827);
-      color: var(--text);
-      min-height: 100vh;
-      padding: 20px;
+      font-family: Inter, Segoe UI, system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      padding: 24px;
     }
 
-    h1 { margin-top: 0; margin-bottom: 6px; }
-    p { color: var(--muted); margin-top: 0; }
+    h1 {
+      margin: 0 0 6px;
+      font-size: 1.6rem;
+    }
 
-    .layout {
+    .subtitle {
+      margin: 0 0 18px;
+      color: #2e5962;
+    }
+
+    .workspace {
+      background: var(--board);
+      border-radius: 14px;
+      border: 2px solid #6cb4be;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+      overflow: hidden;
+    }
+
+    .board-main {
       display: grid;
-      grid-template-columns: 1fr 340px;
+      grid-template-columns: minmax(430px, 520px) minmax(620px, 1fr);
       gap: 16px;
+      padding: 18px;
       align-items: start;
     }
 
-    .panel {
-      background: rgba(17, 24, 39, 0.95);
-      border: 1px solid #1f2937;
-      border-radius: 12px;
-      padding: 14px;
-      box-shadow: 0 10px 24px rgba(0,0,0,0.35);
+    .char-panel {
+      background: var(--panel);
+      border-radius: 10px;
+      padding: 12px;
+      border: 2px solid #7bc6cf;
     }
 
-    .lcd-frame {
-      background: radial-gradient(circle at top right, #3f8f42, #1f4f24);
-      border: 4px solid #355f38;
-      border-radius: 14px;
-      padding: 16px;
-      margin-bottom: 12px;
-      overflow-x: auto;
-    }
-
-    #grid {
-      width: fit-content;
-      background: #2c412e;
-      border: 2px solid #274029;
-      border-radius: 8px;
-      padding: 8px;
+    .name-row {
       display: grid;
-      grid-template-columns: repeat(20, var(--cell));
-      grid-template-rows: repeat(4, var(--cell));
-      gap: 4px;
-      margin: auto;
-    }
-
-    .cell {
-      width: var(--cell);
-      height: var(--cell);
-      border: 1px solid #355f38;
-      border-radius: 4px;
-      background: rgba(143, 227, 136, 0.88);
-      color: #153418;
-      font-size: 18px;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-      text-transform: uppercase;
-      text-align: center;
-      line-height: calc(var(--cell) - 2px);
-      cursor: text;
-      user-select: none;
-      outline: none;
-    }
-
-    .cell.active {
-      border-color: #14532d;
-      box-shadow: inset 0 0 0 2px #14532d;
-      background: #aff1aa;
-    }
-
-    .toolbar {
-      display: grid;
-      grid-template-columns: 1fr auto auto;
+      grid-template-columns: 1fr auto;
       gap: 8px;
-      margin-bottom: 8px;
-      align-items: center;
+      margin-bottom: 10px;
     }
 
     input, textarea, button, select {
-      background: #0b1220;
-      color: var(--text);
-      border: 1px solid #334155;
-      border-radius: 8px;
+      border: 1px solid #4a8e97;
+      border-radius: 7px;
+      background: #effbff;
+      color: var(--ink);
       padding: 8px 10px;
       font: inherit;
     }
 
-    button {
-      cursor: pointer;
-      background: #0f172a;
-      transition: 120ms ease;
-    }
+    button { cursor: pointer; }
+    button:hover { filter: brightness(0.97); }
 
-    button:hover { border-color: #4b5563; }
-    .btn-primary { background: #14532d; border-color: #166534; }
-    .btn-danger { background: #7f1d1d; border-color: #b91c1c; }
-
-    .inline {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-      margin-bottom: 8px;
-    }
-
-    .muted { color: var(--muted); font-size: 13px; }
-
-    #frames {
-      max-height: 240px;
-      overflow-y: auto;
-      border: 1px solid #334155;
-      border-radius: 8px;
-      padding: 6px;
+    .char-grid-wrap {
       display: grid;
-      gap: 6px;
-      margin-bottom: 8px;
-    }
-
-    .frame-item {
-      background: #0b1220;
-      border: 1px solid #334155;
-      border-radius: 8px;
-      padding: 8px;
-      display: grid;
-      grid-template-columns: 1fr auto;
-      gap: 8px;
+      grid-template-columns: auto auto;
+      gap: 12px;
       align-items: center;
     }
 
-    .frame-item.active { border-color: var(--accent); }
-
-    .tiny {
-      font-family: ui-monospace, monospace;
-      font-size: 11px;
-      color: #cbd5e1;
-      white-space: pre;
-      line-height: 1.2;
+    #charGrid {
+      display: grid;
+      grid-template-columns: repeat(5, var(--cell-size));
+      grid-template-rows: repeat(8, var(--cell-size));
+      gap: 4px;
+      width: fit-content;
+      padding: 6px;
+      border-radius: 8px;
+      background: #7ec5ce;
+      border: 1px solid #87d2db;
     }
 
-    #output {
-      min-height: 260px;
+    .bit {
+      width: var(--cell-size);
+      height: var(--cell-size);
+      border-radius: 4px;
+      border: 1px dashed rgba(255, 255, 255, 0.7);
+      background: rgba(255,255,255,0.1);
+    }
+
+    .bit.on {
+      background: #f4f7f8;
+      border-style: solid;
+    }
+
+    .side-controls {
+      display: grid;
+      gap: 8px;
+      align-content: center;
+    }
+
+    .lcd-block {
+      background: #9ec8cd;
+      border-radius: 12px;
+      padding: 14px;
+      border: 2px solid #8ec0c6;
+    }
+
+    .lcd {
+      background: var(--lcd-bezel);
+      border-radius: 9px;
+      padding: 12px;
+      box-shadow: inset 0 0 0 1px #000;
+    }
+
+    #lcdGrid {
+      display: grid;
+      grid-template-columns: repeat(20, 24px);
+      grid-template-rows: repeat(4, 32px);
+      gap: 2px;
+      width: fit-content;
+      margin: auto;
+      padding: 8px;
+      border-radius: 5px;
+      background: var(--lcd-bg);
+    }
+
+    .lcd-cell {
+      position: relative;
+      width: 24px;
+      height: 32px;
+      border: 1px solid rgba(0,0,0,0.08);
+      background: var(--lcd-bg);
+      border-radius: 2px;
+      cursor: pointer;
+    }
+
+    .lcd-cell.active {
+      outline: 2px solid #dceca4;
+      outline-offset: -2px;
+    }
+
+    .dot-grid {
+      display: grid;
+      grid-template-columns: repeat(5, var(--dot-size));
+      grid-template-rows: repeat(8, var(--dot-size));
+      gap: 1px;
+      position: absolute;
+      top: 2px;
+      left: 2px;
+    }
+
+    .dot { background: var(--lcd-dot); }
+    .dot.on { background: #eef9ca; }
+
+    .controls {
+      margin-top: 12px;
+      display: grid;
+      grid-template-columns: repeat(5, minmax(90px, 1fr));
+      gap: 8px;
+      align-items: end;
+    }
+
+    .controls label {
+      display: grid;
+      gap: 4px;
+      font-size: 0.9rem;
+    }
+
+    .code-zone {
+      background: #eaf7fb;
+      border-top: 8px solid var(--board-dark);
+      padding: 14px;
+    }
+
+    #code {
       width: 100%;
+      min-height: 260px;
       resize: vertical;
-      font-family: ui-monospace, monospace;
-      font-size: 12px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 13px;
       line-height: 1.35;
+      background: #fff;
     }
 
-    @media (max-width: 1080px) {
-      .layout { grid-template-columns: 1fr; }
+    .hint { margin: 8px 0 0; color: #2f5961; font-size: 0.9rem; }
+
+    @media (max-width: 1220px) {
+      .board-main { grid-template-columns: 1fr; }
+      #lcdGrid { transform-origin: top left; transform: scale(0.9); }
     }
   </style>
 </head>
 <body>
-  <h1>20x4 LCD UI & Animation Designer</h1>
-  <p>Design frame-by-frame UIs for a 20x4 character display and export ready-to-use C code.</p>
+  <h1>20x4 LCD Character Creator</h1>
+  <p class="subtitle">Styled after the LCD Character Creator reference, updated for a 20x4 display.</p>
 
-  <div class="layout">
-    <section class="panel">
-      <div class="lcd-frame">
-        <div id="grid" aria-label="20 by 4 LCD editor"></div>
-      </div>
+  <div class="workspace">
+    <div class="board-main">
+      <section class="char-panel">
+        <div class="name-row">
+          <input id="charName" value="name0x1" maxlength="24" />
+          <button id="clearChar">Clear pixels</button>
+        </div>
 
-      <div class="toolbar">
-        <input id="textInput" placeholder="Type text to place" maxlength="80" />
-        <button id="pasteBtn">Place text</button>
-        <button id="clearBtn" class="btn-danger">Clear frame</button>
-      </div>
+        <div class="char-grid-wrap">
+          <div id="charGrid" aria-label="5x8 character editor"></div>
+          <div class="side-controls">
+            <button id="shiftUp">▲ Shift up</button>
+            <button id="shiftDown">▼ Shift down</button>
+            <button id="shiftLeft">◀ Shift left</button>
+            <button id="shiftRight">▶ Shift right</button>
+            <button id="invert">Invert</button>
+          </div>
+        </div>
+        <p class="hint">Click cells to draw a custom 5x8 character. This maps to one LCD CGRAM slot.</p>
+      </section>
 
-      <div class="inline">
-        <label>
-          Start row
-          <select id="rowSelect"></select>
-        </label>
-        <label>
-          Start col
-          <select id="colSelect"></select>
-        </label>
-        <span class="muted">Click any cell and type to edit one character. Backspace deletes.</span>
-      </div>
+      <section class="lcd-block">
+        <div class="lcd">
+          <div id="lcdGrid" aria-label="20 by 4 LCD preview"></div>
+        </div>
 
-      <hr style="border-color:#334155; margin:12px 0;" />
+        <div class="controls">
+          <label>CGRAM slot
+            <select id="slotSelect"></select>
+          </label>
+          <label>Row (0-3)
+            <input id="rowInput" type="number" min="0" max="3" value="0" />
+          </label>
+          <label>Col (0-19)
+            <input id="colInput" type="number" min="0" max="19" value="0" />
+          </label>
+          <button id="placeChar">Place char</button>
+          <button id="clearDisplay">Clear display</button>
+        </div>
+      </section>
+    </div>
 
-      <div class="inline">
-        <button id="addFrameBtn" class="btn-primary">Add frame</button>
-        <button id="dupFrameBtn">Duplicate frame</button>
-        <button id="delFrameBtn" class="btn-danger">Delete frame</button>
-        <button id="upFrameBtn">Move up</button>
-        <button id="downFrameBtn">Move down</button>
-      </div>
-
-      <div id="frames"></div>
-
-      <div class="inline">
-        <label>Frame delay (ms)
-          <input id="delayInput" type="number" min="50" step="10" value="250" style="width:120px" />
-        </label>
-        <button id="playBtn">▶ Play</button>
-        <button id="stopBtn">■ Stop</button>
+    <section class="code-zone">
+      <textarea id="code" readonly></textarea>
+      <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">
+        <button id="copyCode">Copy sketch</button>
       </div>
     </section>
-
-    <aside class="panel">
-      <h3 style="margin-top:0">Generated C output</h3>
-      <p class="muted">Includes frame data + example function to render animations on a 20x4 LCD.</p>
-      <textarea id="output" readonly></textarea>
-      <div class="inline" style="margin-top:8px">
-        <button id="copyBtn" class="btn-primary">Copy code</button>
-      </div>
-    </aside>
   </div>
 
   <script>
     const ROWS = 4;
     const COLS = 20;
+    const DOT_ROWS = 8;
+    const DOT_COLS = 5;
 
-    const grid = document.getElementById('grid');
-    const framesEl = document.getElementById('frames');
-    const output = document.getElementById('output');
-    const rowSelect = document.getElementById('rowSelect');
-    const colSelect = document.getElementById('colSelect');
-    const delayInput = document.getElementById('delayInput');
+    const charGrid = document.getElementById('charGrid');
+    const lcdGrid = document.getElementById('lcdGrid');
+    const codeEl = document.getElementById('code');
 
     const state = {
-      frames: [createEmptyFrame()],
-      activeFrame: 0,
+      charPixels: Array.from({ length: DOT_ROWS }, () => Array.from({ length: DOT_COLS }, () => 0)),
+      display: Array.from({ length: ROWS }, () => Array.from({ length: COLS }, () => null)),
       activeCell: { row: 0, col: 0 },
-      playing: false,
-      playTimer: null,
-      playIndex: 0,
     };
 
-    for (let r = 0; r < ROWS; r++) {
-      rowSelect.insertAdjacentHTML('beforeend', `<option value="${r}">${r}</option>`);
-    }
-    for (let c = 0; c < COLS; c++) {
-      colSelect.insertAdjacentHTML('beforeend', `<option value="${c}">${c}</option>`);
+    function clamp(v, min, max) {
+      return Math.min(max, Math.max(min, v));
     }
 
-    function createEmptyFrame() {
-      return Array.from({ length: ROWS }, () => Array.from({ length: COLS }, () => ' '));
-    }
-
-    function escapeCString(str) {
-      return str
-        .replace(/\\/g, '\\\\')
-        .replace(/"/g, '\\"');
-    }
-
-    function rowToString(rowArr) {
-      return rowArr.join('');
-    }
-
-    function buildGrid() {
-      grid.innerHTML = '';
-      for (let r = 0; r < ROWS; r++) {
-        for (let c = 0; c < COLS; c++) {
-          const cell = document.createElement('div');
-          cell.className = 'cell';
-          cell.dataset.row = r;
-          cell.dataset.col = c;
-          cell.tabIndex = 0;
-          cell.textContent = state.frames[state.activeFrame][r][c] === ' ' ? '\u00A0' : state.frames[state.activeFrame][r][c];
-
-          cell.addEventListener('click', () => setActiveCell(r, c));
-          cell.addEventListener('keydown', (e) => handleCellKey(e, r, c));
-
-          grid.appendChild(cell);
+    function drawCharGrid() {
+      charGrid.innerHTML = '';
+      for (let r = 0; r < DOT_ROWS; r++) {
+        for (let c = 0; c < DOT_COLS; c++) {
+          const btn = document.createElement('button');
+          btn.className = 'bit' + (state.charPixels[r][c] ? ' on' : '');
+          btn.type = 'button';
+          btn.addEventListener('click', () => {
+            state.charPixels[r][c] = state.charPixels[r][c] ? 0 : 1;
+            drawCharGrid();
+            drawLcd();
+            updateCode();
+          });
+          charGrid.appendChild(btn);
         }
       }
-      refreshActiveCellUi();
     }
 
-    function setActiveCell(row, col) {
-      state.activeCell = { row, col };
-      rowSelect.value = row;
-      colSelect.value = col;
-      refreshActiveCellUi();
+    function getRowByte(rowBits) {
+      return rowBits.reduce((acc, bit, idx) => acc | (bit ? (1 << (DOT_COLS - 1 - idx)) : 0), 0);
     }
 
-    function refreshActiveCellUi() {
-      [...grid.children].forEach((el) => el.classList.remove('active'));
-      const idx = state.activeCell.row * COLS + state.activeCell.col;
-      const cell = grid.children[idx];
-      if (cell) {
+    function toBinLiteral(rowBits) {
+      return `B${rowBits.join('')}`;
+    }
+
+    function createLcdCell(row, col) {
+      const cell = document.createElement('div');
+      cell.className = 'lcd-cell';
+      if (state.activeCell.row === row && state.activeCell.col === col) {
         cell.classList.add('active');
-        cell.focus();
-      }
-    }
-
-    function setChar(row, col, ch) {
-      state.frames[state.activeFrame][row][col] = ch;
-      const idx = row * COLS + col;
-      const cell = grid.children[idx];
-      if (cell) cell.textContent = ch === ' ' ? '\u00A0' : ch;
-    }
-
-    function moveCursor(dr, dc) {
-      let row = state.activeCell.row + dr;
-      let col = state.activeCell.col + dc;
-      row = Math.max(0, Math.min(ROWS - 1, row));
-      col = Math.max(0, Math.min(COLS - 1, col));
-      setActiveCell(row, col);
-    }
-
-    function handleCellKey(e, row, col) {
-      if (e.key === 'ArrowRight') { e.preventDefault(); moveCursor(0, 1); return; }
-      if (e.key === 'ArrowLeft') { e.preventDefault(); moveCursor(0, -1); return; }
-      if (e.key === 'ArrowUp') { e.preventDefault(); moveCursor(-1, 0); return; }
-      if (e.key === 'ArrowDown') { e.preventDefault(); moveCursor(1, 0); return; }
-
-      if (e.key === 'Backspace' || e.key === 'Delete') {
-        e.preventDefault();
-        setChar(row, col, ' ');
-        renderFramesList();
-        updateOutput();
-        return;
       }
 
-      if (e.key.length === 1) {
-        e.preventDefault();
-        setChar(row, col, e.key[0]);
-        if (col < COLS - 1) setActiveCell(row, col + 1);
-        renderFramesList();
-        updateOutput();
+      const dotGrid = document.createElement('div');
+      dotGrid.className = 'dot-grid';
+
+      const placed = state.display[row][col];
+      for (let dr = 0; dr < DOT_ROWS; dr++) {
+        for (let dc = 0; dc < DOT_COLS; dc++) {
+          const dot = document.createElement('div');
+          dot.className = 'dot';
+          if (placed && placed[dr][dc]) dot.classList.add('on');
+          dotGrid.appendChild(dot);
+        }
       }
-    }
 
-    function placeText(text, startRow, startCol) {
-      let r = startRow;
-      let c = startCol;
-      for (const ch of text) {
-        if (ch === '\n') { r += 1; c = startCol; continue; }
-        if (r >= ROWS) break;
-        if (c >= COLS) { r += 1; c = startCol; }
-        if (r >= ROWS) break;
-        setChar(r, c, ch);
-        c += 1;
-      }
-      renderFramesList();
-      updateOutput();
-    }
-
-    function framePreview(frame) {
-      return frame.map((row) => rowToString(row)).join('\n');
-    }
-
-    function cloneFrame(frame) {
-      return frame.map((r) => [...r]);
-    }
-
-    function renderFramesList() {
-      framesEl.innerHTML = '';
-      state.frames.forEach((frame, idx) => {
-        const item = document.createElement('div');
-        item.className = 'frame-item' + (idx === state.activeFrame ? ' active' : '');
-        const left = document.createElement('div');
-        left.innerHTML = `<strong>Frame ${idx}</strong><div class="tiny">${framePreview(frame)}</div>`;
-        const right = document.createElement('button');
-        right.textContent = 'Load';
-        right.addEventListener('click', () => {
-          state.activeFrame = idx;
-          buildGrid();
-          renderFramesList();
-          updateOutput();
-        });
-        item.append(left, right);
-        framesEl.appendChild(item);
+      cell.appendChild(dotGrid);
+      cell.addEventListener('click', () => {
+        state.activeCell = { row, col };
+        document.getElementById('rowInput').value = row;
+        document.getElementById('colInput').value = col;
+        drawLcd();
       });
+      return cell;
     }
 
-    function updateOutput() {
-      const delay = Math.max(50, Number(delayInput.value) || 250);
+    function drawLcd() {
+      lcdGrid.innerHTML = '';
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+          lcdGrid.appendChild(createLcdCell(r, c));
+        }
+      }
+    }
+
+    function updateCode() {
+      const name = (document.getElementById('charName').value || 'customChar').replace(/\s+/g, '_');
+      const slot = Number(document.getElementById('slotSelect').value);
+      const row = clamp(Number(document.getElementById('rowInput').value) || 0, 0, ROWS - 1);
+      const col = clamp(Number(document.getElementById('colInput').value) || 0, 0, COLS - 1);
+      const literals = state.charPixels.map((bits) => toBinLiteral(bits));
+      const byteRows = state.charPixels.map((bits) => getRowByte(bits));
+
       const lines = [];
-      lines.push('// Generated by 20x4 LCD UI & Animation Designer');
-      lines.push('#include <LiquidCrystal.h>');
+      lines.push('#include <Wire.h>');
+      lines.push('#include <Adafruit_RGBLCDShield.h>');
+      lines.push('#include <utility/Adafruit_MCP23017.h>');
       lines.push('');
-      lines.push('// Configure pins for your hardware');
-      lines.push('LiquidCrystal lcd(12, 11, 5, 4, 3, 2);');
+      lines.push('Adafruit_RGBLCDShield lcd = Adafruit_RGBLCDShield();');
       lines.push('');
-      lines.push(`#define LCD_ROWS ${ROWS}`);
-      lines.push(`#define LCD_COLS ${COLS}`);
-      lines.push(`#define FRAME_COUNT ${state.frames.length}`);
-      lines.push(`#define FRAME_DELAY_MS ${delay}`);
-      lines.push('');
-      lines.push('const char lcdFrames[FRAME_COUNT][LCD_ROWS][LCD_COLS + 1] = {');
-      state.frames.forEach((frame, fIdx) => {
-        lines.push('  {');
-        frame.forEach((row, rIdx) => {
-          const rowStr = escapeCString(rowToString(row));
-          const comma = rIdx < ROWS - 1 ? ',' : '';
-          lines.push(`    "${rowStr}"${comma}`);
-        });
-        const comma = fIdx < state.frames.length - 1 ? ',' : '';
-        lines.push(`  }${comma}`);
-      });
-      lines.push('};');
-      lines.push('');
-      lines.push('void renderFrame(uint8_t frameIndex) {');
-      lines.push('  for (uint8_t row = 0; row < LCD_ROWS; row++) {');
-      lines.push('    lcd.setCursor(0, row);');
-      lines.push('    lcd.print(lcdFrames[frameIndex][row]);');
-      lines.push('  }');
-      lines.push('}');
+      lines.push(`byte ${name}[] = { ${literals.join(', ')} };`);
       lines.push('');
       lines.push('void setup() {');
-      lines.push('  lcd.begin(LCD_COLS, LCD_ROWS);');
+      lines.push('  lcd.begin(20, 4);');
+      lines.push(`  lcd.createChar(${slot}, ${name});`);
+      lines.push(`  lcd.setCursor(${col}, ${row});`);
+      lines.push(`  lcd.write(${slot});`);
       lines.push('}');
       lines.push('');
-      lines.push('void loop() {');
-      lines.push('  for (uint8_t i = 0; i < FRAME_COUNT; i++) {');
-      lines.push('    renderFrame(i);');
-      lines.push('    delay(FRAME_DELAY_MS);');
-      lines.push('  }');
-      lines.push('}');
+      lines.push('void loop() {}');
+      lines.push('');
+      lines.push('// Decimal byte values (same pattern):');
+      lines.push(`// { ${byteRows.join(', ')} }`);
 
-      output.value = lines.join('\n');
+      codeEl.value = lines.join('\n');
     }
 
-    function addFrame() {
-      state.frames.push(createEmptyFrame());
-      state.activeFrame = state.frames.length - 1;
-      buildGrid();
-      renderFramesList();
-      updateOutput();
-    }
-
-    function duplicateFrame() {
-      const current = state.frames[state.activeFrame];
-      state.frames.splice(state.activeFrame + 1, 0, cloneFrame(current));
-      state.activeFrame += 1;
-      buildGrid();
-      renderFramesList();
-      updateOutput();
-    }
-
-    function deleteFrame() {
-      if (state.frames.length === 1) {
-        state.frames[0] = createEmptyFrame();
-        state.activeFrame = 0;
-      } else {
-        state.frames.splice(state.activeFrame, 1);
-        state.activeFrame = Math.max(0, state.activeFrame - 1);
+    function shift(dx, dy) {
+      const next = Array.from({ length: DOT_ROWS }, () => Array.from({ length: DOT_COLS }, () => 0));
+      for (let r = 0; r < DOT_ROWS; r++) {
+        for (let c = 0; c < DOT_COLS; c++) {
+          const nr = r + dy;
+          const nc = c + dx;
+          if (nr >= 0 && nr < DOT_ROWS && nc >= 0 && nc < DOT_COLS) {
+            next[nr][nc] = state.charPixels[r][c];
+          }
+        }
       }
-      buildGrid();
-      renderFramesList();
-      updateOutput();
+      state.charPixels = next;
+      drawCharGrid();
+      drawLcd();
+      updateCode();
     }
 
-    function moveFrame(direction) {
-      const from = state.activeFrame;
-      const to = from + direction;
-      if (to < 0 || to >= state.frames.length) return;
-      const [item] = state.frames.splice(from, 1);
-      state.frames.splice(to, 0, item);
-      state.activeFrame = to;
-      renderFramesList();
-      updateOutput();
+    function invert() {
+      state.charPixels = state.charPixels.map((row) => row.map((v) => (v ? 0 : 1)));
+      drawCharGrid();
+      drawLcd();
+      updateCode();
     }
 
-    function playFrames() {
-      if (state.playing || state.frames.length === 0) return;
-      state.playing = true;
-      state.playIndex = 0;
-      const delay = Math.max(50, Number(delayInput.value) || 250);
-
-      const tick = () => {
-        if (!state.playing) return;
-        state.activeFrame = state.playIndex;
-        buildGrid();
-        renderFramesList();
-        updateOutput();
-        state.playIndex = (state.playIndex + 1) % state.frames.length;
-        state.playTimer = setTimeout(tick, delay);
-      };
-
-      tick();
-    }
-
-    function stopFrames() {
-      state.playing = false;
-      if (state.playTimer) {
-        clearTimeout(state.playTimer);
-        state.playTimer = null;
-      }
-    }
-
-    document.getElementById('pasteBtn').addEventListener('click', () => {
-      const text = document.getElementById('textInput').value;
-      const row = Number(rowSelect.value);
-      const col = Number(colSelect.value);
-      placeText(text, row, col);
+    document.getElementById('clearChar').addEventListener('click', () => {
+      state.charPixels = Array.from({ length: DOT_ROWS }, () => Array.from({ length: DOT_COLS }, () => 0));
+      drawCharGrid();
+      drawLcd();
+      updateCode();
     });
 
-    document.getElementById('clearBtn').addEventListener('click', () => {
-      state.frames[state.activeFrame] = createEmptyFrame();
-      buildGrid();
-      renderFramesList();
-      updateOutput();
+    document.getElementById('placeChar').addEventListener('click', () => {
+      const row = clamp(Number(document.getElementById('rowInput').value) || 0, 0, ROWS - 1);
+      const col = clamp(Number(document.getElementById('colInput').value) || 0, 0, COLS - 1);
+      state.activeCell = { row, col };
+      state.display[row][col] = state.charPixels.map((line) => [...line]);
+      drawLcd();
+      updateCode();
     });
 
-    document.getElementById('addFrameBtn').addEventListener('click', addFrame);
-    document.getElementById('dupFrameBtn').addEventListener('click', duplicateFrame);
-    document.getElementById('delFrameBtn').addEventListener('click', deleteFrame);
-    document.getElementById('upFrameBtn').addEventListener('click', () => moveFrame(-1));
-    document.getElementById('downFrameBtn').addEventListener('click', () => moveFrame(1));
-    document.getElementById('playBtn').addEventListener('click', playFrames);
-    document.getElementById('stopBtn').addEventListener('click', stopFrames);
+    document.getElementById('clearDisplay').addEventListener('click', () => {
+      state.display = Array.from({ length: ROWS }, () => Array.from({ length: COLS }, () => null));
+      drawLcd();
+      updateCode();
+    });
 
-    document.getElementById('copyBtn').addEventListener('click', async () => {
+    document.getElementById('shiftUp').addEventListener('click', () => shift(0, -1));
+    document.getElementById('shiftDown').addEventListener('click', () => shift(0, 1));
+    document.getElementById('shiftLeft').addEventListener('click', () => shift(-1, 0));
+    document.getElementById('shiftRight').addEventListener('click', () => shift(1, 0));
+    document.getElementById('invert').addEventListener('click', invert);
+
+    document.getElementById('charName').addEventListener('input', updateCode);
+    document.getElementById('rowInput').addEventListener('input', updateCode);
+    document.getElementById('colInput').addEventListener('input', updateCode);
+    document.getElementById('slotSelect').addEventListener('change', updateCode);
+
+    document.getElementById('copyCode').addEventListener('click', async () => {
       try {
-        await navigator.clipboard.writeText(output.value);
+        await navigator.clipboard.writeText(codeEl.value);
       } catch {
-        output.select();
+        codeEl.select();
         document.execCommand('copy');
       }
     });
 
-    rowSelect.addEventListener('change', () => setActiveCell(Number(rowSelect.value), Number(colSelect.value)));
-    colSelect.addEventListener('change', () => setActiveCell(Number(rowSelect.value), Number(colSelect.value)));
-    delayInput.addEventListener('change', updateOutput);
+    const slotSelect = document.getElementById('slotSelect');
+    for (let i = 0; i <= 7; i++) {
+      slotSelect.insertAdjacentHTML('beforeend', `<option value="${i}">${i}</option>`);
+    }
 
-    buildGrid();
-    renderFramesList();
-    updateOutput();
+    drawCharGrid();
+    drawLcd();
+    updateCode();
   </script>
 </body>
 </html>
