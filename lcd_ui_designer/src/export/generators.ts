@@ -1,14 +1,14 @@
-import { Matrix, TimelineFrame } from '../types';
+import { CharacterDefinition, Matrix, TimelineFrame } from '../types';
 
 const rowToBinary = (row: number[]) => `0b${row.map((c) => (c ? '1' : '0')).join('')}`;
 const rowToHex = (row: number[]) => `0x${parseInt(row.join(''), 2).toString(16).padStart(2, '0')}`;
 
-export const toCgramCode = (slots: Matrix[]) => {
-  const chars = slots
-    .map((m, i) => {
-      if (!m.length) return '';
-      const rows = m.map((r) => `  ${rowToBinary(r)}, // ${rowToHex(r)}`).join('\n');
-      return `byte customChar${i}[8] = {\n${rows}\n};\nlcd.createChar(${i}, customChar${i});`;
+export const toCgramCode = (characters: CharacterDefinition[]) => {
+  const chars = characters
+    .slice(0, 8)
+    .map((char, i) => {
+      const rows = char.matrix.map((r) => `  ${rowToBinary(r)}, // ${rowToHex(r)}`).join('\n');
+      return `byte customChar${char.id}[8] = {\n${rows}\n};\nlcd.createChar(${i}, customChar${char.id}); // ${char.name}`;
     })
     .join('\n\n');
   return `#include <LiquidCrystal.h>\nLiquidCrystal lcd(12, 11, 5, 4, 3, 2);\n\nvoid setup() {\n  lcd.begin(20, 4);\n${chars.split('\n').map((line) => `  ${line}`).join('\n')}\n}`;

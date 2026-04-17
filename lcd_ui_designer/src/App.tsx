@@ -7,7 +7,7 @@ import ExportPanel from './components/ExportPanel';
 import { useDesignerStore } from './store/useDesignerStore';
 
 export default function App() {
-  const { tab, setTab, cursor, setCursor, activeChar, placeChar, charMatrix, setCharMatrix } = useDesignerStore();
+  const { tab, setTab, cursor, setCursor, activeCell, placeChar, charMatrix, setCharMatrix } = useDesignerStore();
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -24,12 +24,12 @@ export default function App() {
       if (e.key === 'ArrowRight') setCursor(Math.min(19, cursor.x + 1), cursor.y);
       if (e.code === 'Space') {
         e.preventDefault();
-        placeChar('static', cursor.x, cursor.y, activeChar);
+        placeChar('static', cursor.x, cursor.y, activeCell);
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [cursor, setCursor, placeChar, activeChar, charMatrix, setCharMatrix]);
+  }, [cursor, setCursor, placeChar, activeCell, charMatrix, setCharMatrix]);
 
   return (
     <div className="max-w-[1400px] mx-auto p-4 space-y-3">

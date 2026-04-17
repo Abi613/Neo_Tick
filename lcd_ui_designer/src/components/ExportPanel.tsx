@@ -3,12 +3,12 @@ import { toAdafruitCode, toCgramCode, toProjectJSON, toU8g2Code, toWokwiProject 
 import { snapshotProject, useDesignerStore } from '../store/useDesignerStore';
 
 export default function ExportPanel() {
-  const { cgram, oled, timeline, code, setCode } = useDesignerStore();
+  const { characterLibrary, oled, timeline, code, setCode } = useDesignerStore();
 
   return (
     <div className="panel p-3 space-y-3">
       <div className="flex gap-2 flex-wrap">
-        <button className="btn" onClick={() => setCode(toCgramCode(cgram))}>Arduino LiquidCrystal</button>
+        <button className="btn" onClick={() => setCode(toCgramCode(characterLibrary))}>Arduino LiquidCrystal</button>
         <button className="btn" onClick={() => setCode(toU8g2Code(oled))}>U8g2</button>
         <button className="btn" onClick={() => setCode(toAdafruitCode(oled))}>Adafruit SSD1306</button>
         <button className="btn" onClick={() => setCode(toProjectJSON(snapshotProject()))}>Project JSON</button>

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { PointerEvent, useEffect, useRef } from 'react';
 import { Matrix } from '../types';
 
 type Props = {
@@ -30,17 +30,26 @@ export default function PixelGridCanvas({ matrix, pixelSize = 28, onPixelClick, 
     }
   }, [matrix, pixelSize]);
 
+  const handlePoint = (e: PointerEvent<HTMLCanvasElement>) => {
+    if (!onPixelClick) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = Math.floor((e.clientX - rect.left) / pixelSize);
+    const y = Math.floor((e.clientY - rect.top) / pixelSize);
+    onPixelClick(x, y);
+  };
+
   return (
     <canvas
       ref={ref}
-      className={`rounded border border-slate-600 ${hover ? 'cursor-crosshair' : ''}`}
-      onClick={(e) => {
-        if (!onPixelClick) return;
-        const rect = e.currentTarget.getBoundingClientRect();
-        const x = Math.floor((e.clientX - rect.left) / pixelSize);
-        const y = Math.floor((e.clientY - rect.top) / pixelSize);
-        onPixelClick(x, y);
+      className={`rounded border border-slate-600 ${hover ? 'cursor-crosshair touch-none' : ''}`}
+      onPointerDown={(e) => {
+        e.currentTarget.setPointerCapture(e.pointerId);
+        handlePoint(e);
       }}
+      onPointerMove={(e) => {
+        if (e.buttons === 1) handlePoint(e);
+      }}
+      onClick={handlePoint}
     />
   );
 }
