@@ -23,11 +23,21 @@ export default function Timeline() {
     setSchedulerCode,
     schedulerError,
     characterLibrary,
+    selectedFrameIndex,
+    setSelectedFrameIndex,
   } = useDesignerStore();
-  const [idx, setIdx] = useState(0);
+  const [idx, setIdx] = useState(selectedFrameIndex);
   const rafRef = useRef<number>();
   const elapsedRef = useRef(0);
   const lastRef = useRef(0);
+
+  useEffect(() => {
+    setIdx(selectedFrameIndex);
+  }, [selectedFrameIndex]);
+
+  useEffect(() => {
+    setSelectedFrameIndex(idx);
+  }, [idx, setSelectedFrameIndex]);
 
   useEffect(() => {
     if (!playing) {
