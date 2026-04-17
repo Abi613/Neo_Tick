@@ -26,23 +26,42 @@ export default function ScreenLayoutEditor() {
     });
   };
 
+  const mergedGrid = store.lcdStatic.map((row, y) =>
+    row.map((v, x) => (store.lcdAnimated[y][x].kind === 'text' && store.lcdAnimated[y][x].value === ' ' ? v : store.lcdAnimated[y][x])),
+  );
+
   return (
     <div className="grid grid-cols-12 gap-3">
       <div className="col-span-6 space-y-3">
         <div className="panel p-3">
           <h3 className="font-semibold mb-2">20x4 LCD Layout</h3>
           <LCDPreview
-            grid={store.lcdStatic.map((r, y) => r.map((v, x) => store.lcdAnimated[y][x] !== ' ' ? store.lcdAnimated[y][x] : v))}
+            grid={mergedGrid}
+            characters={store.characterLibrary}
             cursor={store.cursor}
             onCellClick={(x, y) => {
               store.setCursor(x, y);
-              store.placeChar('static', x, y, store.activeChar);
+              store.placeChar('static', x, y, store.activeCell);
             }}
           />
-          <div className="mt-3 flex items-center gap-2">
-            <input className="bg-slate-900 border border-slate-700 rounded px-2 py-1" maxLength={1} value={store.activeChar}
-              onChange={(e) => store.setActiveChar(e.target.value || ' ')} />
-            <button className="btn" onClick={() => store.placeChar('animated', store.cursor.x, store.cursor.y, store.activeChar)}>Place on Animated Layer</button>
+          <div className="mt-3 space-y-2">
+            <div className="flex items-center gap-2">
+              <input
+                className="bg-slate-900 border border-slate-700 rounded px-2 py-1 w-16"
+                maxLength={1}
+                value={store.activeCell.kind === 'text' ? String(store.activeCell.value) : ''}
+                onChange={(e) => store.setActiveText(e.target.value)}
+              />
+              <button className="btn" onClick={() => store.setActiveCell({ kind: 'text', value: ' ' })}>Use Text Cell</button>
+              <button className="btn" onClick={() => store.placeChar('animated', store.cursor.x, store.cursor.y, store.activeCell)}>Place on Animated Layer</button>
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              {store.characterLibrary.map((char) => (
+                <button key={char.id} className={`btn ${store.activeCell.kind === 'custom' && store.activeCell.value === char.id ? 'btn-primary' : ''}`} onClick={() => store.setActiveCell({ kind: 'custom', value: char.id })}>
+                  {char.name}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       </div>
