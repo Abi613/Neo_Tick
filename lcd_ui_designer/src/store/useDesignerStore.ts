@@ -9,7 +9,8 @@ import {
   TimelineFrame,
 } from '../types';
 import { cloneMatrix, createMatrix } from '../utils/matrix';
-import { compileScheduler, defaultScheduler, defaultSchedulerCode } from '../simulation/scheduler';
+import { defaultScheduler, defaultSchedulerCode } from '../simulation/scheduler';
+import { runSchedulerSource } from '../utils/schedulerRunner';
 
 const GRID_W = 20;
 const GRID_H = 4;
@@ -54,6 +55,8 @@ type State = {
   lcdStatic: LCDCell[][];
   lcdAnimated: LCDCell[][];
   cursor: { x: number; y: number };
+  selection: { x: number; y: number };
+  clipboardCell: LCDCell | null;
   oled: Matrix;
   oledTool: OledTool;
   timeline: TimelineFrame[];
@@ -63,6 +66,7 @@ type State = {
   schedulerCode: string;
   schedulerError: string | null;
   simulationDebug: SchedulerOutput[];
+  selectedFrameIndex: number;
   setTab: (tab: TabMode) => void;
   setCharPixel: (x: number, y: number, v: number) => void;
   setCharMatrix: (m: Matrix) => void;
@@ -73,6 +77,12 @@ type State = {
   setActiveCell: (cell: LCDCell) => void;
   setActiveText: (text: string) => void;
   setCursor: (x: number, y: number) => void;
+  copySelection: () => void;
+  pasteSelection: () => void;
+  cutSelection: () => void;
+  clearSelection: () => void;
+  moveSelection: (dx: number, dy: number) => void;
+  drawAtSelection: () => void;
   placeChar: (layer: 'static' | 'animated', x: number, y: number, value: LCDCell) => void;
   setOledPixel: (x: number, y: number, v: number) => void;
   setOledTool: (tool: OledTool) => void;
@@ -88,6 +98,8 @@ type State = {
   setSchedulerCode: (code: string) => void;
   runSchedulerForFrame: (frameIndex: number, previousMap: Record<number, number>) => SchedulerOutput;
   setSimulationDebug: (debug: SchedulerOutput[]) => void;
+  setSelectedFrameIndex: (index: number) => void;
+  duplicateSelectedFrame: () => void;
 };
 
 export const useDesignerStore = create<State>((set, get) => ({
@@ -99,6 +111,8 @@ export const useDesignerStore = create<State>((set, get) => ({
   lcdStatic: makeGrid(),
   lcdAnimated: makeGrid(),
   cursor: { x: 0, y: 0 },
+  selection: { x: 0, y: 0 },
+  clipboardCell: null,
   oled: createMatrix(128, 32),
   oledTool: 'pencil',
   timeline: [makeFrame()],
@@ -108,6 +122,7 @@ export const useDesignerStore = create<State>((set, get) => ({
   schedulerCode: defaultSchedulerCode,
   schedulerError: null,
   simulationDebug: [],
+  selectedFrameIndex: 0,
   setTab: (tab) => set({ tab }),
   setCharPixel: (x, y, v) =>
     set((s) => {
@@ -150,7 +165,43 @@ export const useDesignerStore = create<State>((set, get) => ({
     set((s) => ({ characterLibrary: s.characterLibrary.map((char) => (char.id === id ? { ...char, name } : char)) })),
   setActiveCell: (activeCell) => set({ activeCell }),
   setActiveText: (text) => set({ activeCell: { kind: 'text', value: (text || ' ').slice(0, 1) } }),
-  setCursor: (x, y) => set({ cursor: { x, y } }),
+  setCursor: (x, y) => set({ cursor: { x, y }, selection: { x, y } }),
+  copySelection: () =>
+    set((s) => ({
+      clipboardCell: { ...s.lcdStatic[s.selection.y][s.selection.x] },
+    })),
+  pasteSelection: () =>
+    set((s) => {
+      if (!s.clipboardCell) return {};
+      const next = s.lcdStatic.map((r) => r.map((cell) => ({ ...cell })));
+      next[s.selection.y][s.selection.x] = { ...s.clipboardCell };
+      return { lcdStatic: next };
+    }),
+  cutSelection: () =>
+    set((s) => {
+      const next = s.lcdStatic.map((r) => r.map((cell) => ({ ...cell })));
+      const copied = { ...next[s.selection.y][s.selection.x] };
+      next[s.selection.y][s.selection.x] = { kind: 'text', value: ' ' };
+      return { lcdStatic: next, clipboardCell: copied };
+    }),
+  clearSelection: () =>
+    set((s) => {
+      const next = s.lcdStatic.map((r) => r.map((cell) => ({ ...cell })));
+      next[s.selection.y][s.selection.x] = { kind: 'text', value: ' ' };
+      return { lcdStatic: next };
+    }),
+  moveSelection: (dx, dy) =>
+    set((s) => {
+      const x = Math.max(0, Math.min(GRID_W - 1, s.selection.x + dx));
+      const y = Math.max(0, Math.min(GRID_H - 1, s.selection.y + dy));
+      return { selection: { x, y }, cursor: { x, y } };
+    }),
+  drawAtSelection: () =>
+    set((s) => {
+      const next = s.lcdStatic.map((r) => r.map((cell) => ({ ...cell })));
+      next[s.selection.y][s.selection.x] = { ...s.activeCell };
+      return { lcdStatic: next };
+    }),
   placeChar: (layer, x, y, value) =>
     set((s) => {
       const key = layer === 'static' ? 'lcdStatic' : 'lcdAnimated';
@@ -201,14 +252,14 @@ export const useDesignerStore = create<State>((set, get) => ({
     if (!frame) return { cgramMap: previousMap, updates: [] };
 
     try {
-      const scheduler = compileScheduler(s.schedulerCode);
-      const output = scheduler({
+      const result = runSchedulerSource(s.schedulerCode, {
         frameIndex,
         requiredChars: frame.lcd.usedChars,
         previousMap,
       });
+      if (!result.ok) throw new Error(result.error);
       set({ schedulerError: null });
-      return output;
+      return result.output;
     } catch (error) {
       const fallback = defaultScheduler({ frameIndex, requiredChars: frame.lcd.usedChars, previousMap });
       set({ schedulerError: error instanceof Error ? error.message : 'Scheduler failed; default applied.' });
@@ -216,6 +267,19 @@ export const useDesignerStore = create<State>((set, get) => ({
     }
   },
   setSimulationDebug: (simulationDebug) => set({ simulationDebug }),
+  setSelectedFrameIndex: (selectedFrameIndex) => set({ selectedFrameIndex }),
+  duplicateSelectedFrame: () =>
+    set((s) => {
+      const frame = s.timeline[s.selectedFrameIndex];
+      if (!frame) return {};
+      const copy: TimelineFrame = {
+        ...frame,
+        id: crypto.randomUUID(),
+        lcd: normalizeGrid(frame.lcd.grid.map((r) => r.map((cell) => ({ ...cell })))),
+        oled: cloneMatrix(frame.oled),
+      };
+      return { timeline: [...s.timeline, copy], selectedFrameIndex: s.timeline.length };
+    }),
 }));
 
 export const snapshotProject = () => {
